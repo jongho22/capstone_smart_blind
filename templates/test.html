@@ -24,16 +24,21 @@
         var markerArr = [];
     
         function initTmap(endPosition_Y,endPosition_X) {
-            
-            // 0. *기본 세팅
+            $('#map_div_02').empty()
+            $('#guide').empty()
+
+            // 안내 텍스트 배열
+            var guideText =[]
+
+            // 0. *지도 기본 세팅
             var startPosition = [37.564991,126.983937] // *출발지 좌표 => 아두이노로 출발지 좌표 받아와야 함
             var endPosition = [endPosition_Y,endPosition_X] // *도착지 좌표
             var mapView = [Number(((startPosition[0]+endPosition[0])/2).toFixed(8)),Number(((startPosition[1]+endPosition[1])/2).toFixed(8))] // *지도 기본 시점 세팅
             
-            console.log(`출발지 : ${startPosition}, 도착지 : ${endPosition}, 지도 기본 시점 좌표 : ${mapView}`)
+            console.log(`정보\n--------------\n출발지 : ${startPosition}\n도착지 : ${endPosition}\n지도 기본 시점 좌표 : ${mapView}`)
             
             // 1. 지도 띄우기
-            map = new Tmapv2.Map("map_div", {
+            map = new Tmapv2.Map("map_div_02", {
             center : new Tmapv2.LatLng(mapView[0], mapView[1]),
                 width : "100%",
                 height : "400px",
@@ -108,8 +113,20 @@
                             var geometry = resultData[i].geometry;
                             var properties = resultData[i].properties;
                             var polyline_;
-    
-    
+
+                            if((properties.description).includes("이동")){
+                                console.log(`> ${properties.description}`)
+                                if(properties.facilityType=="15"){
+                                    console.log("> [ 횡단보도 탐지 시스템 작동 ]")
+                                    guideText.push(`[*횡단보도*] ${properties.description}`)
+                                }
+                                guideText.push(properties.description)
+                            }
+                            else if((properties.description).includes("도착")) {
+                                console.log(`도착헀습니다.`)
+                                guideText.push(properties.description)
+                            }
+                            
                             if (geometry.type == "LineString") {
                                 for ( var j in geometry.coordinates) {
                                     // 경로들의 결과값(구간)들을 포인트 객체로 변환 
@@ -126,7 +143,9 @@
                                     // 배열에 담기
                                     drawInfoArr.push(convertChange);
                                 }
-                                console.log(convertChange) // 포인트 객체의 정보 (좌표값) == 아마도 경유지 포인트를 의미하는 것 같음
+
+                                //console.log(convertChange) // 포인트 객체의 정보 (좌표값) == 아마도 경유지 포인트를 의미하는 것 같음
+                            
                             } else {
                                 var markerImg = "";
                                 var pType = "";
@@ -141,7 +160,7 @@
                                     pType = "E";
                                     size = new Tmapv2.Size(24, 38);
                                 } else { //각 포인트 마커
-                                    console.log(properties.pointType) // SP 시작 포인트, GP 경유 포인트, EP 끝 포인트 <= 이거 3개로 구성되어있음 
+                                    //console.log(properties.pointType) // SP 시작 포인트, GP 경유 포인트, EP 끝 포인트 <= 이거 3개로 구성되어있음 
                                     markerImg = "http://topopen.tmap.co.kr/imgs/point.png";
                                     pType = "P";
                                     size = new Tmapv2.Size(8, 8);
@@ -176,6 +195,13 @@
                             }
                         }//for문 [E]
                         drawLine(drawInfoArr);
+
+                        var str = ""
+
+                        for(var i=0; i<guideText.length; i++){
+                            str += `${i} => ${guideText[i]}\n`
+                        }
+                        $('#guide').append(str)
                     },
                     error : function(request, status, error) {
                         console.log("code:" + request.status + "\n"
@@ -205,6 +231,11 @@
 
         // 도착지 검색 요청
         function search() {
+
+            $('#searchResult').empty()
+            $('#map_div').empty()
+            $('#map_div_02').empty()
+
             var searchKeyword = $('#searchKeyword').val();
 		    var headers = {}; 
 		    headers["appKey"]="sIM1M4iLV94rPT0Mi9Uyp7qKIGP6sD5gY7GUhyw5";
@@ -212,9 +243,9 @@
             console.log(`${searchKeyword}를 검색 했습니다.`)
 
             // 1. 지도 띄우기
-            map = new Tmapv2.Map("map_div", {
+            map = new Tmapv2.Map("map_div_02", {
                 center: new Tmapv2.LatLng(0,0),
-                width : "70%",
+                width : "100%",
                 height : "400px",
                 zoom : 17,
                 zoomControl : true,
@@ -286,11 +317,7 @@
             });
         };
 
-        function destinationPoint(lat,lon){
-            console.log("버튼이 눌렸습니다.");
-            console.log(lat); // endPosition_Y
-            console.log(lon); // endPosition_X
-
+        function destinationPoint(lat,lon){ // endPosition_Y, endPosition_X
             initTmap(lat,lon);
         }
 
@@ -298,32 +325,40 @@
 
 </head>
 <body>
-        <div>
-            <input type="text" class="text_custom" id="searchKeyword" name="searchKeyword" value="">	
-            <button id="btn_select" onclick='search()'>출발</button>
-        </div>
-        <div>
-            <div style="width: 30%; float:left;">
-                <div class="title"><strong>Search</strong> Results</div>
+    <div>
+        <input type="text" class="text_custom" id="searchKeyword" name="searchKeyword" value="">	
+        <button id="btn_select" onclick='search()'>출발</button>
+    </div>
+    
+    <div style="overflow:hidden">
+        <div style="width: 50%; float:left;">
+            <div class="title"><strong>Search</strong> Results</div>
                 <div class="rst_wrap">
-                    <div class="rst mCustomScrollbar">
-                        <ul id="searchResult" name="searchResult">
-                            <li>검색결과</li>
-                        </ul>
+                    <div class="row">
+                        <div class="rst mCustomScrollbar">
+                            <ul id="searchResult" name="searchResult">
+                                <li>검색결과</li>
+                            </ul>
+                        </div>
                     </div>
+                    
                 </div>
-            </div>
+                <div id="result"></div>
         </div>
-
-        <div id="result"></div>
-
-		<!-- 190430 기존 지도를 모두 이미지 처리 위해 주석 처리 S -->
-		<div id="map_wrap" class="map_wrap3">
-			<div id="map_div"></div>
-		</div>
-		<div class="map_act_btn_wrap clear_box"></div>
-		<p id="result"></p>
-        
-		<br />
+        <div style="width: 50%; float: right;">
+            <div id="map_div_02"></div>
+        </div>
+    </div>
+    <hr>
+    <p id="guide" style="white-space: pre-line;"></p>
+    <!-- 190430 기존 지도를 모두 이미지 처리 위해 주석 처리 S -->
+    <!--<div>
+        <div id="map_wrap" class="map_wrap3">
+            <div id="map_div"></div>
+        </div>
+        <div class="map_act_btn_wrap clear_box"></div>
+        </br>
+        <div id="guide"></div>
+    </div>-->
 </body>
 </html>
